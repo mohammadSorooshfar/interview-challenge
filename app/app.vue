@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useHead } from "nuxt/app";
 import { useLocale } from "vuetify";
 
 const locale = useLocale();
@@ -12,5 +13,7 @@ useHead({
 </script>
 
 <template>
-  <nuxt-page />
+  <nuxt-layout>
+    <nuxt-page />
+  </nuxt-layout>
 </template>

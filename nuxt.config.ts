@@ -12,6 +12,7 @@ export default defineNuxtConfig({
   nitro: {
     preset: "node-server",
   },
+  css: ["@/assets/styles/main.scss"],
   app: {
     head: {
       title: "Interview Challenge",
