@@ -16,12 +16,12 @@ defineProps<{
 <template>
   <v-skeleton-loader
     v-if="loading"
-    class="mx-auto"
-    max-width="300"
+    class="mx-auto w-full"
+    style="height: 400px"
     type="image, heading, subtitle, subtitle"
   ></v-skeleton-loader>
 
-  <v-card v-else class="d-flex flex-column ga-2" elevation="0">
+  <v-card v-else class="d-flex flex-column ga-2 rounded-0" elevation="0">
     <v-img
       :src="product?.imageUrl"
       :alt="product?.name"
