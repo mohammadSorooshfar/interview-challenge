@@ -1,0 +1,29 @@
+/* Use the CSS variable set in _fonts.scss */
+.v-application {
+  font-family: "Dana" !important;
+}
+
+/* Vuetify typography classes — only override font-family */
+.text-h1,
+.text-h2,
+.text-h3,
+.text-h4,
+.text-h5,
+.text-h6,
+.text-subtitle-1,
+.text-subtitle-2,
+.text-body-1,
+.text-body-2,
+.text-button,
+.text-caption,
+.text-overline,
+.v-label {
+  font-family: "Dana" !important;
+}
+
+/* Optionally ensure buttons use Dana (Vuetify sometimes sets text-transform and font-family on buttons)
+   Remove if you want to skip buttons. */
+.v-btn,
+.v-btn * {
+  font-family: "Dana" !important;
+}
