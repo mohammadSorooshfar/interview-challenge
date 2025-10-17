@@ -16,7 +16,7 @@ defineProps<{
 <template>
   <v-skeleton-loader
     v-if="loading"
-    class="mx-auto w-full"
+    class="mx-auto w-100"
     style="height: 436px"
     type="image, heading, subtitle, subtitle"
   ></v-skeleton-loader>

@@ -19,7 +19,7 @@ const mdAndDown = computed(() => display.mdAndDown.value);
 
 <template>
   <v-container class="pa-16">
-    <h1 class="mb-8">{{ $t("product.products") }}</h1>
+    <h1 class="mb-8">{{ `${$route.params.slug}`.replaceAll("-", " ") }}</h1>
 
     <div class="mb-4" v-if="mdAndDown">
       <v-btn icon="mdi-filter-variant" @click="drawer = true" />
@@ -28,8 +28,8 @@ const mdAndDown = computed(() => display.mdAndDown.value);
     </div>
 
     <v-row>
-      <v-col cols="12" md="4" v-if="!mdAndDown">
-        <FilterBox />
+      <v-col md="4" v-if="!mdAndDown">
+        <FilterBox hideCategories />
       </v-col>
 
       <v-col cols="12" md="8">
@@ -45,7 +45,7 @@ const mdAndDown = computed(() => display.mdAndDown.value);
       scrim
       :hide-overlay="false"
     >
-      <FilterBox :mobile="true" />
+      <FilterBox hideCategories :mobile="true" />
     </v-navigation-drawer>
   </v-container>
 </template>

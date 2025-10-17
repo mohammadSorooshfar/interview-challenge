@@ -1,22 +1,16 @@
-import {
-  ref,
-  computed,
-  onMounted,
-  onBeforeUnmount,
-  nextTick,
-  watch,
-} from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { useRoute } from "#imports";
 import type {
-  PostProductsRequest,
   PostProductsResponse,
+  PostProductsRequest,
 } from "~/types/dto/products";
 
 export function useProducts(pageSize: number) {
+  const route = useRoute();
   const products = ref<PostProductsResponse[]>([]);
   const totalItems = ref<number | null>(null);
-  const currentPage = ref(0);
+  const currentPage = ref(1);
   const loading = ref(false);
-  const error = ref<string | null>(null);
   const reachedEnd = ref(false);
   const config = useRuntimeConfig();
 
@@ -32,85 +26,108 @@ export function useProducts(pageSize: number) {
     }))
   );
 
-  async function fetchPage(page: number, body?: PostProductsRequest) {
-    if (loading.value || reachedEnd.value) return;
+  const currentFilters = computed<PostProductsRequest>(() => {
+    const q = route.query;
+    const merchantIds = q.merchantIds
+      ? (Array.isArray(q.merchantIds)
+          ? q.merchantIds
+          : String(q.merchantIds).split(",")
+        ).map((n) => Number(n))
+      : [];
+    return { merchantIds };
+  });
+
+  async function fetchPage(page: number) {
+    if (loading.value || reachedEnd.value) return { ok: false, empty: false };
     loading.value = true;
-    error.value = null;
+
+    const hasCategory = !!route.params.categoryId;
+    const url = hasCategory
+      ? `${config.public.apiBase}/products/${route.params.categoryId}`
+      : `${config.public.apiBase}/products`;
 
     try {
       const res = await $fetch<{
         data: PostProductsResponse[];
         totalItems: number;
-      }>(`${config.public.apiBase}/products`, {
+      }>(url, {
         method: "POST",
         query: { size: pageSize, page },
-        body,
+        body: currentFilters.value,
       });
 
       const incoming = res.data ?? [];
       totalItems.value = res.totalItems ?? totalItems.value;
+
+      if (incoming.length === 0 && page === 0) {
+        reachedEnd.value = true;
+        products.value = [];
+        currentPage.value = 0;
+        return { ok: true, empty: true };
+      }
+
       if (incoming.length < pageSize) reachedEnd.value = true;
 
       products.value.push(...incoming);
+
       currentPage.value = page;
-    } catch (err: any) {
-      if (err?.name !== "AbortError") error.value = String(err);
+      return { ok: true, empty: incoming.length === 0 };
+    } catch (err) {
+      console.warn("fetchPage error", err);
+      return { ok: false, empty: false, error: err };
     } finally {
       loading.value = false;
     }
   }
 
-  async function loadNextPage(body?: PostProductsRequest) {
-    if (!loading.value && !reachedEnd.value) {
-      await fetchPage(currentPage.value + 1, body);
-    }
-  }
-
-  const sentinelRef = ref<HTMLElement | null>(null);
-  let io: IntersectionObserver | null = null;
-
-  function setupObserver(body?: PostProductsRequest) {
-    if (!window.IntersectionObserver) return;
-    io = new IntersectionObserver(
-      async ([entry]) => {
-        if (entry?.isIntersecting && !loading.value && !reachedEnd.value) {
-          await loadNextPage(body);
-        }
-      },
-      { root: null, rootMargin: "400px", threshold: 0.01 }
-    );
-    if (sentinelRef.value) io.observe(sentinelRef.value);
-  }
-
-  async function ensureScrollable(body?: PostProductsRequest) {
-    await nextTick();
-    const scrollable =
-      document.documentElement.scrollHeight > window.innerHeight + 50;
-
-    if (!scrollable && !loading.value && !reachedEnd.value) {
-      await loadNextPage(body);
-    }
+  async function resetAndFetch() {
+    products.value = [];
+    totalItems.value = null;
+    currentPage.value = 1;
+    reachedEnd.value = false;
+    await fetchPage(currentPage.value);
   }
 
   onMounted(() => {
-    setupObserver();
-
-    watch(
-      () => products.value.length,
-      async () => {
-        await ensureScrollable();
-      },
-      { immediate: true }
-    );
+    resetAndFetch();
   });
 
-  onBeforeUnmount(() => {
-    if (io && sentinelRef.value) io.unobserve(sentinelRef.value);
-  });
+  watch(
+    () => [route.query, route.params.categoryId],
+    () => {
+      resetAndFetch();
+    },
+    { deep: true }
+  );
+
+  async function onLoad(args: {
+    done: (status: "ok" | "empty" | "error") => void;
+  }) {
+    try {
+      if (loading.value || reachedEnd.value) {
+        return args.done(reachedEnd.value ? "empty" : "ok");
+      }
+      const nextPage = currentPage.value + 1;
+      const result = await fetchPage(nextPage);
+
+      if (result.ok) {
+        if (result.empty || reachedEnd.value) {
+          args.done("empty");
+        } else {
+          args.done("ok");
+        }
+      } else {
+        args.done("error");
+      }
+    } catch (err) {
+      console.error("onLoad error", err);
+      args.done("error");
+    }
+  }
 
   return {
     normalizedProducts,
     loading,
-    sentinelRef,
+    onLoad,
   };
 }

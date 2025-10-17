@@ -13,7 +13,9 @@ useHead({
 </script>
 
 <template>
-  <nuxt-layout>
-    <nuxt-page />
-  </nuxt-layout>
+  <v-app>
+    <nuxt-layout>
+      <nuxt-page />
+    </nuxt-layout>
+  </v-app>
 </template>
