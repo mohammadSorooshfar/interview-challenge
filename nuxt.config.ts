@@ -11,7 +11,9 @@ export default defineNuxtConfig({
       apiBase: "https://interview-api.azkivam.com/api/v1",
     },
   },
-
+  routeRules: {
+    "/": { redirect: "/products" },
+  },
   vite: {
     ssr: { noExternal: ["vuetify"] },
     plugins: [vuetify({ autoImport: true })],
@@ -20,7 +22,6 @@ export default defineNuxtConfig({
   nitro: {
     preset: "node-server",
   },
-
   css: ["@/assets/styles/main.scss"],
 
   app: {
