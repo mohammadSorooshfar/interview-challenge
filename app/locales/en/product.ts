@@ -6,4 +6,5 @@ export default {
   stores: "Stores",
   searchStore: "Search store",
   products: "Products",
+  noItemFound: "No item found",
 };

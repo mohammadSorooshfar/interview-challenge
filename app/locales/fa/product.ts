@@ -6,4 +6,5 @@ export default {
   stores: "فروشگاه‌ها",
   searchStore: "جستجوی فروشگاه",
   products: "محصولات",
+  noItemFound: "محصولی یافت نشد",
 };
