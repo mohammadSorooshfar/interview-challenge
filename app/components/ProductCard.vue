@@ -17,7 +17,7 @@ defineProps<{
   <v-skeleton-loader
     v-if="loading"
     class="mx-auto w-full"
-    style="height: 400px"
+    style="height: 436px"
     type="image, heading, subtitle, subtitle"
   ></v-skeleton-loader>
 
@@ -34,16 +34,16 @@ defineProps<{
       {{ product?.name }}
     </v-card-title>
 
-    <v-card-subtitle class="text-subtitle-2" style="font-family: 'Dana'">
+    <v-card-subtitle class="text-subtitle-2">
       {{ $t("product.startPrice") }}
     </v-card-subtitle>
 
-    <v-card-text
-      class="text-h6 font-weight-bold pt-0"
-      style="font-family: 'Dana'"
-    >
+    <v-card-text class="text-h6 font-weight-bold pt-0">
       {{ product?.minPrice }}
-      <span class="text-subtitle-2">{{ $t("product.toman") }}</span>
+
+      <span class="text-subtitle-2" style="vertical-align: super">{{
+        $t("product.toman")
+      }}</span>
     </v-card-text>
   </v-card>
 </template>
