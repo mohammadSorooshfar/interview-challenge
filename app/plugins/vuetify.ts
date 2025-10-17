@@ -1,6 +1,5 @@
-import "@/assets/styles/settings.scss";
-import "vuetify/styles";
 import "@/assets/styles/main.scss";
+import "vuetify/styles";
 import "@mdi/font/css/materialdesignicons.css";
 
 import { createVuetify } from "vuetify";
@@ -13,6 +12,7 @@ import { createVueI18nAdapter } from "vuetify/locale/adapters/vue-i18n";
 
 export default defineNuxtPlugin((nuxtApp) => {
   const vuetify = createVuetify({
+    ssr: true,
     components,
     directives,
     locale: {
@@ -20,6 +20,15 @@ export default defineNuxtPlugin((nuxtApp) => {
     },
     theme: {
       defaultTheme: "light",
+      themes: {
+        light: {
+          dark: false,
+          colors: {
+            primary: "#f7f8fa",
+            secondary: "#e0e0e0",
+          },
+        },
+      },
     },
   });
   nuxtApp.vueApp.use(vuetify);
