@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
-import { useRoute } from "#imports";
+import { ref, computed, watch } from "vue";
+import { useRoute, useAsyncData, useRuntimeConfig } from "#imports";
 import type {
   PostProductsResponse,
   PostProductsRequest,
@@ -7,15 +7,15 @@ import type {
 
 export function useProducts(pageSize: number) {
   const route = useRoute();
+  const config = useRuntimeConfig();
+
   const products = ref<PostProductsResponse[]>([]);
-  const totalItems = ref<number | null>(null);
   const currentPage = ref(1);
   const loading = ref(false);
   const reachedEnd = ref(false);
-  const config = useRuntimeConfig();
 
-  const normalizeUrl = (url: string) =>
-    url ? url.replace(/^https::?/, "http:").replace(/^http::?/, "http:") : "";
+  const normalizeUrl = (url?: string) =>
+    url?.replace(/^https?:?/, "http:") || "";
 
   const normalizedProducts = computed(() =>
     products.value.map((p) => ({
@@ -27,107 +27,95 @@ export function useProducts(pageSize: number) {
   );
 
   const currentFilters = computed<PostProductsRequest>(() => {
-    const q = route.query;
-    const merchantIds = q.merchantIds
-      ? (Array.isArray(q.merchantIds)
-          ? q.merchantIds
-          : String(q.merchantIds).split(",")
-        ).map((n) => Number(n))
-      : [];
-    return { merchantIds };
+    const ids = String(route.query.merchantIds || "")
+      .split(",")
+      .filter(Boolean)
+      .map(Number);
+    return { merchantIds: ids };
   });
 
-  async function fetchPage(page: number) {
-    if (loading.value || reachedEnd.value) return { ok: false, empty: false };
-    loading.value = true;
-
-    const hasCategory = !!route.params.categoryId;
-    const url = hasCategory
+  const endpoint = computed(() =>
+    route.params.categoryId
       ? `${config.public.apiBase}/products/${route.params.categoryId}`
-      : `${config.public.apiBase}/products`;
+      : `${config.public.apiBase}/products`
+  );
 
+  const { data: initialData, refresh } = useAsyncData(
+    `products-${route.params.categoryId || "all"}`,
+    () =>
+      $fetch<{ data: PostProductsResponse[]; totalItems: number }>(
+        endpoint.value,
+        {
+          method: "POST",
+          query: { size: pageSize, page: 1 },
+          body: currentFilters.value,
+        }
+      ),
+    {
+      immediate: true,
+      server: true,
+    }
+  );
+
+  watch(
+    initialData,
+    (res) => {
+      if (!res?.data) return;
+      products.value = res.data;
+      reachedEnd.value = res.data.length < pageSize;
+      currentPage.value = 1;
+    },
+    { immediate: true }
+  );
+
+  if (import.meta.client) {
+    watch(
+      () => [route.params.categoryId, route.query],
+      async () => {
+        reachedEnd.value = false;
+        currentPage.value = 1;
+        await refresh();
+      },
+      { deep: true }
+    );
+  }
+
+  async function fetchPage(page: number) {
+    if (loading.value || reachedEnd.value) return { ok: false };
+    loading.value = true;
     try {
-      const res = await $fetch<{
-        data: PostProductsResponse[];
-        totalItems: number;
-      }>(url, {
-        method: "POST",
-        query: { size: pageSize, page },
-        body: currentFilters.value,
-      });
-
-      const incoming = res.data ?? [];
-      totalItems.value = res.totalItems ?? totalItems.value;
-
-      if (incoming.length === 0 && page === 0) {
-        reachedEnd.value = true;
-        products.value = [];
-        currentPage.value = 0;
-        return { ok: true, empty: true };
-      }
-
-      if (incoming.length < pageSize) reachedEnd.value = true;
-
-      products.value.push(...incoming);
-
+      const { data = [] } = await $fetch<{ data: PostProductsResponse[] }>(
+        endpoint.value,
+        {
+          method: "POST",
+          query: { size: pageSize, page },
+          body: currentFilters.value,
+        }
+      );
+      if (data.length < pageSize) reachedEnd.value = true;
+      products.value.push(...data);
       currentPage.value = page;
-      return { ok: true, empty: incoming.length === 0 };
+      return { ok: true };
     } catch (err) {
       console.warn("fetchPage error", err);
-      return { ok: false, empty: false, error: err };
+      return { ok: false };
     } finally {
       loading.value = false;
     }
   }
 
-  async function resetAndFetch() {
-    products.value = [];
-    totalItems.value = null;
-    currentPage.value = 1;
-    reachedEnd.value = false;
-    await fetchPage(currentPage.value);
-  }
-
-  onMounted(() => {
-    resetAndFetch();
-  });
-
-  watch(
-    () => [route.query, route.params.categoryId],
-    () => {
-      resetAndFetch();
-    },
-    { deep: true }
-  );
-
-  async function onLoad(args: {
+  async function onLoad({
+    done,
+  }: {
     done: (status: "ok" | "empty" | "error") => void;
   }) {
-    try {
-      if (loading.value || reachedEnd.value) {
-        return args.done(reachedEnd.value ? "empty" : "ok");
-      }
-      const nextPage = currentPage.value + 1;
-      const result = await fetchPage(nextPage);
+    if (loading.value || reachedEnd.value)
+      return done(reachedEnd.value ? "empty" : "ok");
 
-      if (result.ok) {
-        if (result.empty || reachedEnd.value) {
-          args.done("empty");
-        } else {
-          args.done("ok");
-        }
-      } else {
-        args.done("error");
-      }
-    } catch (err) {
-      console.error("onLoad error", err);
-      args.done("error");
-    }
+    const nextPage = currentPage.value + 1;
+    const res = await fetchPage(nextPage);
+    done(res.ok ? "ok" : "error");
   }
 
-  return {
-    normalizedProducts,
-    loading,
-    onLoad,
-  };
+  return { normalizedProducts, loading, onLoad };
 }

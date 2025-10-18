@@ -28,9 +28,10 @@ defineProps<{
       width="300"
       height="300"
       class="mx-auto"
+      loading="lazy"
     />
 
-    <v-card-title class="text-wrap text-truncate">
+    <v-card-title class="text-truncate">
       {{ product?.name }}
     </v-card-title>
 

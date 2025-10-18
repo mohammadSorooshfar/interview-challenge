@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "#imports";
+import { useDebounceFn } from "@vueuse/core";
 import type { ICategories } from "~/types/categories";
 import type {
   GetCategoriesResponse,
@@ -16,43 +17,41 @@ const route = useRoute();
 const selectedMerchants = ref<number[]>([]);
 const merchantSearchQuery = ref("");
 
-const { data: categoriesData, error: categoriesError } = await useAsyncData(
+const { data: categoriesData } = await useAsyncData(
   "product-filters-categories",
   async () => {
     try {
       const res = await $fetch<{ data: GetCategoriesResponse[] }>(
         `${config.public.apiBase}/categories`
       );
+
       return res.data;
     } catch (err) {
       console.warn("Error fetching categories (SSR):", err);
-      return [];
     }
   }
 );
 
-const { data: merchantsData, error: merchantsError } = await useAsyncData(
+const { data: merchantsData } = await useAsyncData(
   "product-filters-merchants",
   async () => {
     try {
       const res = await $fetch<{ data: GetMerchantsResponse[] }>(
         `${config.public.apiBase}/merchants`
       );
+
       return res.data;
     } catch (err) {
       console.warn("Error fetching merchants (SSR):", err);
-      return [];
     }
   }
 );
 
 const categories = computed<ICategories[]>(() => {
-  const rawData = categoriesData.value ?? [];
+  const raw = categoriesData.value;
   const map = new Map<number, ICategories>();
-
-  rawData.forEach((c) => {
-    if (!c.enabled) return;
-    map.set(c.id, { ...c, children: [] });
+  raw?.forEach((c) => {
+    if (c.enabled) map.set(c.id, { ...c, children: [] });
   });
 
   map.forEach((cat) => {
@@ -61,57 +60,39 @@ const categories = computed<ICategories[]>(() => {
     }
   });
 
-  return Array.from(map.values()).filter(
-    (cat) => !cat.parent || cat.parent === null
-  );
+  return Array.from(map.values()).filter((cat) => !cat.parent);
 });
 
-const merchants = computed<GetMerchantsResponse[]>(
-  () => merchantsData.value ?? []
-);
-
 const filteredMerchants = computed(() => {
-  if (!merchantSearchQuery.value) return merchants.value;
-  return merchants.value.filter((m) =>
+  if (!merchantSearchQuery.value) return merchantsData.value;
+  return merchantsData.value?.filter((m) =>
     m.name.toLowerCase().includes(merchantSearchQuery.value.toLowerCase())
   );
 });
 
 const setInitialMerchantsFromRoute = () => {
-  const queryIds = route.query.merchantIds;
-  if (queryIds) {
-    const ids = Array.isArray(queryIds)
-      ? queryIds.map((id) => String(id))
-      : String(queryIds).split(",");
-
-    selectedMerchants.value = ids
-      .map((id) => Number(id))
-      .filter((id) => !isNaN(id));
-  }
+  const q = route.query.merchantIds;
+  if (!q) return;
+  const ids = Array.isArray(q) ? q : String(q).split(",");
+  selectedMerchants.value = ids.map(Number).filter((id) => !isNaN(id));
 };
+onMounted(setInitialMerchantsFromRoute);
 
-onMounted(() => {
-  setInitialMerchantsFromRoute();
-});
+const updateQuery = useDebounceFn((val: number[]) => {
+  router.replace({
+    query: {
+      ...route.query,
+      merchantIds: val.length ? val.join(",") : undefined,
+    },
+  });
 
-let timer: ReturnType<typeof setTimeout> | null = null;
+  if (import.meta.client) window.scrollTo({ top: 0, behavior: "smooth" });
+}, 500);
+
 watch(
   selectedMerchants,
   (val) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      router.replace({
-        query: {
-          ...route.query,
-          merchantIds: val.length ? val.join(",") : undefined,
-        },
-      });
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }, 400);
+    updateQuery(val);
   },
   { deep: true }
 );

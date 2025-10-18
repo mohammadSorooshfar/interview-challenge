@@ -2,6 +2,9 @@
 @use "./base/reset.scss";
 
 body {
-  background-color: #f7f8fa;
   font-family: "Dana";
+}
+
+.v-application {
+  background-color: #f7f8fa !important;
 }

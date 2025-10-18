@@ -7,35 +7,37 @@ const { normalizedProducts, onLoad, loading } = useProducts(pageSize);
 </script>
 
 <template>
-  <v-infinite-scroll
-    class="rounded-xl bg-secondary border border-secondary overflow-hidden"
-    @load="onLoad"
-    :margin="400"
-    side="end"
-  >
-    <div class="product-grid">
-      <ProductCard v-for="p in normalizedProducts" :key="p.id" :product="p" />
+  <client-only placeholder-tag="div">
+    <v-infinite-scroll
+      class="rounded-xl bg-secondary border border-secondary overflow-hidden"
+      @load="onLoad"
+      :margin="400"
+      side="end"
+    >
+      <div class="product-grid">
+        <ProductCard v-for="p in normalizedProducts" :key="p.id" :product="p" />
 
-      <ProductCard
-        v-if="loading"
-        v-for="n in pageSize"
-        :key="'skeleton-' + n"
-        :loading="true"
-      />
-    </div>
-
-    <template #loading></template>
-
-    <template #empty>
-      <div
-        v-if="normalizedProducts.length === 0"
-        class="bg-white d-flex justify-center align-center text-h5"
-        style="min-height: 420px"
-      >
-        {{ $t("product.noItemFound") }}
+        <ProductCard
+          v-if="loading"
+          v-for="n in pageSize"
+          :key="'skeleton-' + n"
+          :loading="true"
+        />
       </div>
-    </template>
-  </v-infinite-scroll>
+
+      <template #loading></template>
+
+      <template #empty>
+        <div
+          v-if="normalizedProducts.length === 0"
+          class="bg-white d-flex justify-center align-center text-h5"
+          style="min-height: 420px"
+        >
+          {{ $t("product.noItemFound") }}
+        </div>
+      </template>
+    </v-infinite-scroll>
+  </client-only>
 </template>
 
 <style lang="scss">
