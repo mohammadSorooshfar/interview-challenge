@@ -55,7 +55,11 @@ const mdAndDown = computed(() => {
     </v-row>
 
     <client-only>
-      <v-navigation-drawer v-model="isDrawerOpen" width="320">
+      <v-navigation-drawer
+        v-if="isClient && mdAndDown"
+        v-model="isDrawerOpen"
+        width="320"
+      >
         <FilterBox :hide-categories="isCategoryPage" :mobile="true" />
       </v-navigation-drawer>
     </client-only>
