@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import { useRouter, useRoute } from "#imports";
+import { useRoute, useRouter } from "#imports";
 import { useDebounceFn } from "@vueuse/core";
+import { computed, onMounted, ref, watch } from "vue";
 import type { ICategories } from "~/types/categories";
 import type {
   GetCategoriesResponse,
