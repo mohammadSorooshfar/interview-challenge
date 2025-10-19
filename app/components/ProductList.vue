@@ -30,7 +30,7 @@ const { normalizedProducts, onLoad, loading } = useProducts(pageSize);
       <template #empty>
         <div
           v-if="normalizedProducts.length === 0"
-          class="bg-white d-flex justify-center align-center text-h5"
+          class="bg-white d-flex justify-center align-center text-h5 w-100"
           style="min-height: 420px"
         >
           {{ $t("product.noItemFound") }}
