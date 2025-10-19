@@ -10,6 +10,7 @@ export function useProducts(pageSize: number) {
   const config = useRuntimeConfig();
 
   const products = ref<PostProductsResponse[]>([]);
+  const totalItemsCount = ref<number>();
   const currentPage = ref(1);
   const loading = ref(false);
   const reachedEnd = ref(false);
@@ -62,6 +63,7 @@ export function useProducts(pageSize: number) {
     (res) => {
       if (!res?.data) return;
       products.value = res.data;
+      totalItemsCount.value = res.totalItems;
       reachedEnd.value = res.data.length < pageSize;
       currentPage.value = 1;
     },
@@ -84,16 +86,18 @@ export function useProducts(pageSize: number) {
     if (loading.value || reachedEnd.value) return { ok: false };
     loading.value = true;
     try {
-      const { data = [] } = await $fetch<{ data: PostProductsResponse[] }>(
-        endpoint.value,
-        {
-          method: "POST",
-          query: { size: pageSize, page },
-          body: currentFilters.value,
-        }
-      );
-      if (data.length < pageSize) reachedEnd.value = true;
+      const { data = [] } = await $fetch<{
+        data: PostProductsResponse[];
+      }>(endpoint.value, {
+        method: "POST",
+        query: { size: pageSize, page },
+        body: currentFilters.value,
+      });
       products.value.push(...data);
+
+      if (products.value.length === totalItemsCount.value)
+        reachedEnd.value = true;
+
       currentPage.value = page;
       return { ok: true };
     } catch (err) {
