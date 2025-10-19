@@ -14,85 +14,92 @@ const config = useRuntimeConfig();
 const router = useRouter();
 const route = useRoute();
 
-const selectedMerchants = ref<number[]>([]);
-const merchantSearchQuery = ref("");
+const activeMerchantIds = ref<number[]>([]);
+const merchantSearch = ref("");
 
-const { data: categoriesData } = await useAsyncData(
-  "product-filters-categories",
+const { data: categoriesResponse } = await useAsyncData(
+  "categories-filter-data",
   async () => {
     try {
-      const res = await $fetch<{ data: GetCategoriesResponse[] }>(
+      const { data } = await $fetch<{ data: GetCategoriesResponse[] }>(
         `${config.public.apiBase}/categories`
       );
-
-      return res.data;
+      return data;
     } catch (err) {
       console.warn("Error fetching categories (SSR):", err);
     }
   }
 );
 
-const { data: merchantsData } = await useAsyncData(
-  "product-filters-merchants",
+const { data: merchantsResponse } = await useAsyncData(
+  "merchants-filter-data",
   async () => {
     try {
-      const res = await $fetch<{ data: GetMerchantsResponse[] }>(
+      const { data } = await $fetch<{ data: GetMerchantsResponse[] }>(
         `${config.public.apiBase}/merchants`
       );
-
-      return res.data;
+      return data;
     } catch (err) {
       console.warn("Error fetching merchants (SSR):", err);
     }
   }
 );
 
-const categories = computed<ICategories[]>(() => {
-  const raw = categoriesData.value;
-  const map = new Map<number, ICategories>();
-  raw?.forEach((c) => {
-    if (c.enabled) map.set(c.id, { ...c, children: [] });
+const categoryTree = computed<ICategories[]>(() => {
+  const rawCategories = categoriesResponse.value;
+  const categoryMap = new Map<number, ICategories>();
+
+  rawCategories?.forEach((category) => {
+    if (category.enabled)
+      categoryMap.set(category.id, { ...category, children: [] });
   });
 
-  map.forEach((cat) => {
-    if (cat.parent && map.has(cat.parent)) {
-      map.get(cat.parent)!.children.push(cat);
+  categoryMap.forEach((category) => {
+    if (category.parent && categoryMap.has(category.parent)) {
+      categoryMap.get(category.parent)!.children.push(category);
     }
   });
 
-  return Array.from(map.values()).filter((cat) => !cat.parent);
-});
-
-const filteredMerchants = computed(() => {
-  if (!merchantSearchQuery.value) return merchantsData.value;
-  return merchantsData.value?.filter((m) =>
-    m.name.toLowerCase().includes(merchantSearchQuery.value.toLowerCase())
+  return Array.from(categoryMap.values()).filter(
+    (category) => !category.parent
   );
 });
 
-const setInitialMerchantsFromRoute = () => {
-  const q = route.query.merchantIds;
-  if (!q) return;
-  const ids = Array.isArray(q) ? q : String(q).split(",");
-  selectedMerchants.value = ids.map(Number).filter((id) => !isNaN(id));
-};
-onMounted(setInitialMerchantsFromRoute);
+const visibleMerchants = computed(() => {
+  if (!merchantSearch.value) return merchantsResponse.value;
+  return merchantsResponse.value?.filter((merchant) =>
+    merchant.name.toLowerCase().includes(merchantSearch.value.toLowerCase())
+  );
+});
 
-const updateQuery = useDebounceFn((val: number[]) => {
+const initializeSelectedMerchants = () => {
+  const queryParam = route.query.merchantIds;
+  if (!queryParam) return;
+
+  const ids = Array.isArray(queryParam)
+    ? queryParam
+    : String(queryParam).split(",");
+  activeMerchantIds.value = ids.map(Number).filter((id) => !isNaN(id));
+};
+onMounted(initializeSelectedMerchants);
+
+const applyMerchantFilter = useDebounceFn((ids: number[]) => {
   router.replace({
     query: {
       ...route.query,
-      merchantIds: val.length ? val.join(",") : undefined,
+      merchantIds: ids.length ? ids.join(",") : undefined,
     },
   });
 
-  if (import.meta.client) window.scrollTo({ top: 0, behavior: "smooth" });
+  if (import.meta.client) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 }, 500);
 
 watch(
-  selectedMerchants,
-  (val) => {
-    updateQuery(val);
+  activeMerchantIds,
+  (ids) => {
+    applyMerchantFilter(ids);
   },
   { deep: true }
 );
@@ -112,7 +119,7 @@ watch(
       <h3 class="mb-6">{{ $t("product.category") }}</h3>
       <v-expansion-panels multiple>
         <v-expansion-panel
-          v-for="category in categories"
+          v-for="category in categoryTree"
           :key="category.id"
           elevation="0"
           class="border-0"
@@ -141,7 +148,7 @@ watch(
     <h3 class="my-6">{{ $t("product.stores") }}</h3>
 
     <v-text-field
-      v-model="merchantSearchQuery"
+      v-model="merchantSearch"
       :label="$t('product.searchStore')"
       append-inner-icon="mdi-magnify"
       rounded="lg"
@@ -150,11 +157,11 @@ watch(
 
     <div class="overflow-auto" style="max-height: 300px">
       <v-checkbox
-        v-for="m in filteredMerchants"
-        :key="m.id"
-        v-model="selectedMerchants"
-        :value="m.id"
-        :label="m.name"
+        v-for="merchant in visibleMerchants"
+        :key="merchant.id"
+        v-model="activeMerchantIds"
+        :value="merchant.id"
+        :label="merchant.name"
         class="w-full"
       />
     </div>

@@ -2,7 +2,7 @@ export default {
   startPrice: "شروع قیمت از",
   toman: "تومان",
   filters: "فیلترها",
-  category: "دسته‌بندی",
+  category: "دسته‌بندی‌ها",
   stores: "فروشگاه‌ها",
   searchStore: "جستجوی فروشگاه",
   products: "محصولات",
